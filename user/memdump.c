@@ -60,6 +60,37 @@ main(int argc, char *argv[])
 void
 memdump(char *fmt, char *data)
 {
-  // Your code here.
-
+  char *p = data;
+  for (int i = 0; fmt[i] != '\0';i++){
+     switch(fmt[i]) {
+     case 'i':
+       printf("%d ", *(int*)p);
+       p += sizeof(int);
+       break;
+     case 'h':
+       printf("%d ", *(short*)p);
+       p += sizeof(short);
+       break;
+     case 'c':
+       printf("%c ", *(char*)p);
+       p += sizeof(char);
+       break;
+     case 'p':
+       printf("%p ", *(void**)p);
+       p += sizeof(void*);
+       break;
+     case 's':
+       printf("%s ", *(char**)p);
+       p += sizeof(char*);
+       break;
+     case'S':
+       printf("%s ", p);
+       p += strlen(p)+1;
+       break;
+     default:
+       printf("?\n");
+     }
+  }
+  printf("\n");
 }
+

@@ -105,3 +105,25 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_sleep(void)
+{
+  int n;
+  argint(0, &n);
+
+  if (n < 0)
+     return -1;
+
+  acquire(&tickslock);
+  uint ticks0 = ticks;
+  while(ticks - ticks0 < n){
+     if(killed(myproc())){
+        release(&tickslock);
+	return -1;
+     }
+     sleep(&ticks, &tickslock);
+  }
+  release(&tickslock);
+  return 0;
+}
