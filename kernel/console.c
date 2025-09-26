@@ -22,6 +22,7 @@
 #include "defs.h"
 #include "proc.h"
 
+
 #define BACKSPACE 0x100
 #define C(x)  ((x)-'@')  // Control-x
 
@@ -136,6 +137,41 @@ consoleread(int user_dst, uint64 dst, int n)
 // do erase/kill processing, append to cons.buf,
 // wake up consoleread() if a whole line has arrived.
 //
+
+#define MAX_LINE 128
+char linebuf[MAX_LINE];
+int linepos = 0;
+
+void tabcomplete(void)
+{
+  const char *commands[] = {"ls", "cat", "echo", "grep", "sh"};
+  int num_cmds = 5;
+  int i, j;
+  for (i = 0; i < num_cmds; i++) {
+    int match = 1;
+    for (j=0; j<linepos; j++) {
+      if(linebuf[j] != commands[i][j]) {
+        match = 0;
+        break;
+      }
+    }
+    if(match) {
+      //auto-fill the rest of the command
+      for(; commands[i][j] != '\0'; j++) {
+        if(linepos >= MAX_LINE - 1) {
+          break;
+        }
+        consputc(commands[i][j]);
+        linebuf[linepos++] = commands[i][j];
+      }
+      if (linepos < MAX_LINE) {
+        linebuf[linepos] = '\0';
+      }
+      break;
+    }
+  }
+}
+
 void
 consoleintr(int c)
 {
@@ -158,6 +194,10 @@ consoleintr(int c)
       cons.e--;
       consputc(BACKSPACE);
     }
+    break;
+  case '\t':
+    // we will add tabbing logic later
+    tabcomplete();
     break;
   default:
     if(c != 0 && cons.e-cons.r < INPUT_BUF_SIZE){

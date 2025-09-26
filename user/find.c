@@ -4,15 +4,30 @@
 #include "kernel/fs.h"
 #include "kernel/fcntl.h"
 
+int match(char *re, char *text);
+int matchhere(char *re, char *text);
+int matchstar(int c, char *re, char *text);
+
+int
+match(char *re, char *text)
+{
+  if(re[0] == '^')
+     return matchhere(re + 1, text);
+  do {
+     if(matchhere(re, text))
+       return 1;
+  } while (*text++ != '\0');
+  return 0;
+}
+
 void find (char *path, char *name) 
 {
   char buf[512], *p;
   int fd;
   struct dirent de;
   struct stat st;
-
   if((fd = open(path, 0)) < 0) {
-     fprintf(2, "find: cannor open %s\n", path);
+     fprintf(2, "find: cannot open %s\n", path);
      return;
   }
   if(fstat(fd, &st) < 0){
@@ -20,18 +35,14 @@ void find (char *path, char *name)
      close(fd);
      return;
   }
-
   if(st.type == T_FILE) {
      // isolate last component of path
-     char *last = path;
-     for(char *c = path; *c; c++)
-       if(*c == '/') last = c + 1;
-     if(strcmp(last, name) == 0)
+     if(match(path, name)){
        printf("%s\n", path);
+     }
      close(fd);
      return;
-  }
-  
+  }  
   // if directory exists, iterate entries
   if(st.type == T_DIR) {
      //prepare buffer for child paths
@@ -40,7 +51,7 @@ void find (char *path, char *name)
      *p++ = '/';
      while(read(fd, &de, sizeof(de)) == sizeof(de)){
         if(de.inum == 0) continue;
-        if(strcmp(de.name, ".") == 0 || strcmp(de.name, "..") == 0) continue;
+        if(strcmp(de.name, ".") || strcmp(de.name, "..") == 0) continue;
         memmove(p, de.name, DIRSIZ);
         p[DIRSIZ] = 0;
         // recursive
@@ -54,9 +65,34 @@ int
 main(int argc, char *argv[])
 {
   if(argc < 3) {
-     fprintf(2, "usage: find <startdir> <filename>\n");
+     fprintf(2, "usage: find path regex\n");
      exit(1);
   }
   find(argv[1], argv[2]);
   exit(0);
 }
+
+int 
+matchhere(char *re, char *text)
+{
+  if(re[0] == '\0')
+     return 1;
+  if(re[1] == '*')
+     return matchstar(re[0], re + 2, text);
+  if(re[0] == '$' && re[1] == '\0')
+     return *text == '\0';
+  if(*text != '\0' && (re[0] == '.' || re[0] == *text))
+     return matchhere(re + 1, text + 1);
+  return 0;
+}
+
+int
+matchstar(int c, char *re, char *text)
+{
+  do {
+       if(matchhere(re, text))
+          return 1;
+  } while (*text != '\0' && (*text++ == c || c == '.'));
+  return 0;
+}
+
