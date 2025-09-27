@@ -26,6 +26,7 @@ void find (char *path, char *name)
   int fd;
   struct dirent de;
   struct stat st;
+  
   if((fd = open(path, 0)) < 0) {
      fprintf(2, "find: cannot open %s\n", path);
      return;
@@ -37,21 +38,29 @@ void find (char *path, char *name)
   }
   if(st.type == T_FILE) {
      // isolate last component of path
-     if(match(path, name)){
+     if(match(name, path)){
        printf("%s\n", path);
      }
      close(fd);
      return;
-  }  
+  }
+
   // if directory exists, iterate entries
   if(st.type == T_DIR) {
+     if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
+       fprintf(2, "find:path too long\n");
+       close(fd);
+       return;
+     }
      //prepare buffer for child paths
      strcpy(buf, path);
      p = buf + strlen(buf);
      *p++ = '/';
      while(read(fd, &de, sizeof(de)) == sizeof(de)){
         if(de.inum == 0) continue;
-        if(strcmp(de.name, ".") || strcmp(de.name, "..") == 0) continue;
+        if(strcmp(de.name, ".") == 0 || strcmp(de.name, "..") == 0){
+          continue;
+        }
         memmove(p, de.name, DIRSIZ);
         p[DIRSIZ] = 0;
         // recursive
@@ -62,8 +71,7 @@ void find (char *path, char *name)
 }
 
 int
-main(int argc, char *argv[])
-{
+main(int argc, char *argv[]){
   if(argc < 3) {
      fprintf(2, "usage: find path regex\n");
      exit(1);

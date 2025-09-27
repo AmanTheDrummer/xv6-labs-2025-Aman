@@ -14,6 +14,12 @@
 
 #define MAXARGS 10
 
+#define MAX_HISTORY 20
+#define MAX_LINE 128
+
+char history[MAX_HISTORY][MAX_LINE];
+int history_count = 0;
+
 struct cmd {
   int type;
 };
@@ -146,6 +152,7 @@ getcmd(char *buf, int nbuf)
   gets(buf, nbuf);
   if(buf[0] == 0) // EOF
     return -1;
+
   return 0;
 }
 
@@ -165,9 +172,30 @@ main(void)
 
   // Read and run input commands.
   while(getcmd(buf, sizeof(buf)) >= 0){
+    // save command to history
+    if(buf[0] != 0) {
+      if(history_count < MAX_HISTORY){
+        strcpy(history[history_count], buf);
+        history_count++;
+      } else {
+          for(int i = 1; i < MAX_HISTORY; i++) {
+            strcpy(history[i-1], history[i]);
+          strcpy(history[MAX_HISTORY-1], buf);
+          }
+      }
+    }
+
     char *cmd = buf;
     while (*cmd == ' ' || *cmd == '\t')
       cmd++;
+
+    if(strcmp(cmd, "history\n") == 0){
+      for(int i = 0; i < history_count; i++) {
+        printf("%d %s", i+1, history[i]);
+      }
+      continue;
+    }
+
     if (*cmd == '\n') // is a blank command
       continue;
     if(cmd[0] == 'c' && cmd[1] == 'd' && cmd[2] == ' '){
