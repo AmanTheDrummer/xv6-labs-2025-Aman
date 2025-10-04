@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "syscall.h"
 
 uint64
 sys_exit(void)
@@ -35,6 +36,23 @@ sys_wait(void)
   argaddr(0, &p);
   return kwait(p);
 }
+
+uint64
+sys_interpose(void)
+{
+  int mask;
+  char path[MAXPATH];
+  struct proc *p = myproc();
+
+  argint(0, &mask);
+  argstr(1, path, MAXPATH);
+
+  p->interpose_mask = mask;
+  safestrcpy(p->interpose_path, path, MAXPATH);
+
+  return 0;
+}
+
 
 uint64
 sys_sbrk(void)
