@@ -1,0 +1,33 @@
+QUESTION 1:-
+usertrap() at kernel/trap.c
+
+$2 = 0xa = 10
+
+sstatus = 0x200000022
+
+previous mode = user mode
+
+num stored in register a3
+aman@DESKTOP-H8PMOH6:~/xv6-labs-2025$ grep 80001c7c kernel/kernel.asm
+    80001c7c:   00002683                lw      a3,0(zero) # 0 <_entry-0x80000000>
+kernel crashes because it tried to load from address 0 which isnt mapped in 
+kernels address space, this dereference from register a3 lead to trigger load page
+fault.
+
+(gdb) b syscall
+Breakpoint 2 at 0x80001c6c: file kernel/syscall.c, line 135.
+(gdb) c
+Continuing.
+
+Thread 1 hit Breakpoint 2, syscall () at kernel/syscall.c:135
+135     {
+(gdb) n
+137       struct proc *p = myproc();
+(gdb) n
+
+Thread 1 hit Breakpoint 1, syscall () at kernel/syscall.c:139
+139       num = *(int *)0;
+(gdb) p p->name
+$1 = "init", '\000' <repeats 11 times>
+(gdb) p p->pid
+$2 = 1
