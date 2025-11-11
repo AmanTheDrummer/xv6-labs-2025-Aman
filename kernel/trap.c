@@ -34,18 +34,16 @@ trapinithart(void)
 // called from, and returns to, trampoline.S
 // return value is user satp for trampoline.S to switch to.
 //
+
 uint64
 usertrap(void)
 {
   int which_dev = 0;
-
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");
-
   // send interrupts and exceptions to kerneltrap(),
   // since we're now in the kernel.
   w_stvec((uint64)kernelvec);  //DOC: kernelvec
-
   struct proc *p = myproc();
   
   // save user program counter.
@@ -53,18 +51,14 @@ usertrap(void)
   
   if(r_scause() == 8){
     // system call
-
     if(killed(p))
       kexit(-1);
-
     // sepc points to the ecall instruction,
     // but we want to return to the next instruction.
     p->trapframe->epc += 4;
-
     // an interrupt will change sepc, scause, and sstatus,
     // so enable only now that we're done with those registers.
     intr_on();
-
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
@@ -76,19 +70,48 @@ usertrap(void)
     printf("            sepc=0x%lx stval=0x%lx\n", r_sepc(), r_stval());
     setkilled(p);
   }
-
   if(killed(p))
     kexit(-1);
-
+  
+  // Handle timer interrupt alarm
+  if(which_dev == 2) {  // Timer interrupt
+    if(p->alarm_interval > 0) {
+      p->ticks_remaining++;
+      
+      // Only invoke handler if interval reached and not already in handler
+      if(p->ticks_remaining >= p->alarm_interval && !p->alarm_in_progress) {
+        // Reset tick counter
+        p->ticks_remaining = 0;
+        
+        // Allocate space to save trapframe if not already allocated
+        if(p->alarm_trapframe == 0) {
+          p->alarm_trapframe = (struct trapframe *)kalloc();
+          if(p->alarm_trapframe == 0) {
+            // Out of memory
+            setkilled(p);
+          }
+        }
+        
+        // Save the current trapframe
+        if(p->alarm_trapframe != 0) {
+          memmove(p->alarm_trapframe, p->trapframe, sizeof(struct trapframe));
+          
+          // Mark that we're in the handler
+          p->alarm_in_progress = 1;
+          
+          // Set program counter to the handler function
+          p->trapframe->epc = p->alarm_handler;
+        }
+      }
+    }
+  }
+  
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
     yield();
-
   prepare_return();
-
   // the user page table to switch to, for trampoline.S
   uint64 satp = MAKE_SATP(p->pagetable);
-
   // return to trampoline.S; satp value in a0.
   return satp;
 }

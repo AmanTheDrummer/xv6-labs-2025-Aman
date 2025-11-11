@@ -1,0 +1,7 @@
+1. Arguments in a0 - a7. a2 has 13
+2. compiler inlined f and g, no jump
+3. printf address 0x6ec
+4. ra holds 0x34 after jal to printf
+5. Output: He110 World
+   For big-endian, i = 0x726c6400, 57616 stays same
+6. Output: x=3 y=garbage value. printf got one argument

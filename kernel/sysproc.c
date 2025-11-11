@@ -7,6 +7,44 @@
 #include "proc.h"
 #include "vm.h"
 
+// kernel/sysproc.c
+
+uint64
+sys_sigalarm(void)
+{
+  int interval;
+  uint64 handler;
+  
+  argint(0, &interval);
+  argaddr(1, &handler);
+  
+  struct proc *p = myproc();
+  p->alarm_interval = interval;
+  p->alarm_handler = handler;
+  p->ticks_remaining = 0;
+  
+  return 0;
+}
+
+uint64
+sys_sigreturn(void)
+{
+  struct proc *p = myproc();
+  
+  // Restore the saved registers
+  if(p->alarm_trapframe) {
+    memmove(p->trapframe, p->alarm_trapframe, sizeof(struct trapframe));
+    kfree((void*)p->alarm_trapframe);
+    p->alarm_trapframe = 0;
+  }
+  
+  // Mark that we're no longer in the handler
+  p->alarm_in_progress = 0;
+  
+  // Return the saved a0 value
+  return p->trapframe->a0;
+}
+
 uint64
 sys_exit(void)
 {
@@ -67,7 +105,8 @@ sys_pause(void)
 {
   int n;
   uint ticks0;
-
+  
+  backtrace();
   argint(0, &n);
   if(n < 0)
     n = 0;

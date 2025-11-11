@@ -18,6 +18,7 @@
 volatile int panicking = 0; // printing a panic message
 volatile int panicked = 0; // spinning forever at end of a panic
 
+
 // lock to avoid interleaving concurrent printf's.
 static struct {
   struct spinlock lock;
@@ -138,7 +139,8 @@ panic(char *s)
 {
   panicking = 1;
   printf("panic: ");
-  printf("%s\n", s);
+  printf("%s\n", s);\
+  backtrace(); // added backtrace
   panicked = 1; // freeze uart output from other CPUs
   for(;;)
     ;
@@ -148,4 +150,26 @@ void
 printfinit(void)
 {
   initlock(&pr.lock, "pr");
+}
+
+void
+backtrace(void)
+{
+  printf("backtrace:\n");
+  
+  // Get current frame pointer from s0 register
+  uint64 fp = r_fp();
+  
+  // All stack frames must be on the same page
+  uint64 stack_base = PGROUNDDOWN(fp);
+  
+  // Walk up the stack until we leave the current stack page
+  while(fp > stack_base) {
+    // Return address is at offset -8 from frame pointer
+    uint64 ra = *(uint64*)(fp - 8);
+    printf("%p\n",(void *) ra);
+    
+    // Previous frame pointer is at offset -16
+    fp = *(uint64*)(fp - 16);
+  }
 }
